@@ -1,0 +1,12 @@
+__pycache__/
+*.pyc
+*.egg-info/
+.pytest_cache/
+.venv/
+checkpoints/
+
+# dati e artefatti degli esperimenti
+data/
+results/*.npz
+results/*.pt
+results/*.log

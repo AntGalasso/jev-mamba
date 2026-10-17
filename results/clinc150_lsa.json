@@ -1,0 +1,338 @@
+{
+  "encoder": "lsa",
+  "D": 384,
+  "C": 150,
+  "fit_time_closed_form_s": 2.842,
+  "rho_gcv": {
+    "choice": 0.01,
+    "score": 1000.0,
+    "noul": 1.0
+  },
+  "diag": {
+    "choice_temperature": 0.05128165886902829,
+    "choice_loo_acc": 0.8507999777793884,
+    "choice_train_acc": 0.868066668510437,
+    "score_platt": [
+      0.9875734365904583,
+      -0.7012112430579358
+    ],
+    "noul_platt": [
+      19.154312652417854,
+      50.82429181595151
+    ]
+  },
+  "T_loo": 0.05128165886902829,
+  "T_val": 0.05265727577240601,
+  "holdout_protocol": {
+    "rho": {
+      "choice": 10.0,
+      "score": 1000.0,
+      "noul": 1e-08
+    },
+    "T": 0.0048542935373280145,
+    "fit_time_s": 0.526
+  },
+  "lda_tied_acc": 0.8347,
+  "sgd_probe": {
+    "acc_mean": 0.9036,
+    "acc_std": 0.0005,
+    "time_s": 4.14
+  },
+  "choice_calibration": {
+    "LS raw softmax": {
+      "acc": 0.8246666666666667,
+      "ece": 0.8122491305340416,
+      "nll": 4.448762104379281,
+      "brier": 0.9823614877306552,
+      "acc_ci": null
+    },
+    "LS + T(LOO)  [ours, no val]": {
+      "acc": 0.8246666666666667,
+      "ece": 0.06247772030259258,
+      "nll": 0.7770471937885907,
+      "brier": 0.2634281690310633,
+      "acc_ci": [
+        0.8135,
+        0.8369
+      ],
+      "ece_ci": [
+        0.0536,
+        0.0703
+      ]
+    },
+    "LS + T(val)": {
+      "acc": 0.8246666666666667,
+      "ece": 0.06040924360536511,
+      "nll": 0.7766663218301374,
+      "brier": 0.2634678126591609,
+      "acc_ci": [
+        0.8135,
+        0.8369
+      ],
+      "ece_ci": [
+        0.0543,
+        0.0703
+      ]
+    },
+    "LS rho=holdout + T(holdout)": {
+      "acc": 0.8255555555555556,
+      "ece": 0.061339482051018884,
+      "nll": 0.7764573932700961,
+      "brier": 0.26367625610804507,
+      "acc_ci": null
+    },
+    "LR (CE) raw": {
+      "acc": 0.914,
+      "ece": 0.056993464090216925,
+      "nll": 0.38639857034824365,
+      "brier": 0.1374256714344352,
+      "acc_ci": null
+    },
+    "LR (CE) + T(val)": {
+      "acc": 0.914,
+      "ece": 0.011696679657289145,
+      "nll": 0.34792953099931573,
+      "brier": 0.1274266004439186,
+      "acc_ci": [
+        0.906,
+        0.9217
+      ],
+      "ece_ci": [
+        0.0101,
+        0.0204
+      ]
+    }
+  },
+  "fit_time_lr_one_s": 9.03,
+  "fit_time_lr_grid4_s": 53.58,
+  "reg_lr": 0.001,
+  "selective": {
+    "LS MSP raw": {
+      "auroc_err": 0.8375,
+      "aurc": 0.05099,
+      "ece": 0.8122,
+      "aurc_ci": [
+        0.0452,
+        0.0562
+      ]
+    },
+    "LS MSP + T(LOO)": {
+      "auroc_err": 0.8676,
+      "aurc": 0.04386,
+      "ece": 0.0625,
+      "aurc_ci": [
+        0.0392,
+        0.0487
+      ]
+    },
+    "LS score head (LOO-correct, Platt)": {
+      "auroc_err": 0.7331,
+      "aurc": 0.0812,
+      "ece": 0.039,
+      "aurc_ci": [
+        0.0727,
+        0.0892
+      ]
+    },
+    "LS max-logit": {
+      "auroc_err": 0.8373,
+      "aurc": 0.05105,
+      "ece": null,
+      "aurc_ci": [
+        0.0453,
+        0.0563
+      ]
+    },
+    "LS rho=holdout MSP + T(holdout)": {
+      "auroc_err": 0.866,
+      "aurc": 0.04392,
+      "ece": 0.0613,
+      "aurc_ci": [
+        0.0393,
+        0.0486
+      ]
+    },
+    "LR MSP raw": {
+      "auroc_err": 0.9183,
+      "aurc": 0.01209,
+      "ece": 0.057,
+      "aurc_ci": [
+        0.0099,
+        0.0142
+      ]
+    },
+    "LR MSP + T(val)": {
+      "auroc_err": 0.925,
+      "aurc": 0.01136,
+      "ece": 0.0117,
+      "aurc_ci": [
+        0.0092,
+        0.0134
+      ]
+    }
+  },
+  "rejection": {
+    "MSP  (LR, CE)": {
+      "auroc": 0.9355,
+      "fpr95": 0.2767,
+      "auroc_ci": [
+        0.9279,
+        0.9434
+      ]
+    },
+    "max-logit (LR)": {
+      "auroc": 0.9392,
+      "fpr95": 0.2571,
+      "auroc_ci": [
+        0.932,
+        0.9465
+      ]
+    },
+    "energy (LR)": {
+      "auroc": 0.9367,
+      "fpr95": 0.2762,
+      "auroc_ci": [
+        0.9289,
+        0.9442
+      ]
+    },
+    "MSP + T(LOO) (LS)": {
+      "auroc": 0.8942,
+      "fpr95": 0.4393,
+      "auroc_ci": [
+        0.8838,
+        0.9034
+      ]
+    },
+    "max-logit (LS)": {
+      "auroc": 0.9044,
+      "fpr95": 0.3793,
+      "auroc_ci": [
+        0.8944,
+        0.9134
+      ]
+    },
+    "MSP + T(holdout) (LS, rho=holdout)": {
+      "auroc": 0.8951,
+      "fpr95": 0.4344,
+      "auroc_ci": [
+        0.8846,
+        0.9042
+      ]
+    },
+    "leverage (stats ridge)  [no OOD data]": {
+      "auroc": 0.2311,
+      "fpr95": 0.9927,
+      "auroc_ci": [
+        0.2145,
+        0.2466
+      ]
+    },
+    "Mahalanobis tied (stats ridge) [no OOD data]": {
+      "auroc": 0.5109,
+      "fpr95": 0.9018,
+      "auroc_ci": [
+        0.4918,
+        0.5281
+      ]
+    },
+    "noul head LS (100 OOS train)": {
+      "auroc": 0.6971,
+      "fpr95": 0.8278,
+      "auroc_ci": [
+        0.6779,
+        0.7143
+      ]
+    },
+    "noul head LR (CE, 100 OOS train)": {
+      "auroc": 0.6916,
+      "fpr95": 0.8113,
+      "auroc_ci": [
+        0.6728,
+        0.7112
+      ]
+    }
+  },
+  "domain_ridge_sensitivity": {
+    "domain_ridge=1e-05": {
+      "leverage": 0.2311,
+      "maha": 0.511
+    },
+    "domain_ridge=0.0001": {
+      "leverage": 0.2311,
+      "maha": 0.511
+    },
+    "domain_ridge=0.001": {
+      "leverage": 0.2311,
+      "maha": 0.5109
+    },
+    "domain_ridge=0.01": {
+      "leverage": 0.2311,
+      "maha": 0.5097
+    },
+    "domain_ridge=0.1": {
+      "leverage": 0.2309,
+      "maha": 0.5006
+    }
+  },
+  "noul_head_auroc_vs_n_oos_train": {
+    "0": [
+      null,
+      null
+    ],
+    "5": [
+      0.5893,
+      0.0141
+    ],
+    "10": [
+      0.615,
+      0.0216
+    ],
+    "25": [
+      0.6556,
+      0.0099
+    ],
+    "50": [
+      0.6792,
+      0.0094
+    ],
+    "100": [
+      0.6971,
+      0.0
+    ]
+  },
+  "ridge_sweep": {
+    "1e-06": {
+      "val_acc": 0.8187,
+      "test_acc": 0.8249
+    },
+    "0.0001": {
+      "val_acc": 0.8187,
+      "test_acc": 0.8249
+    },
+    "0.01": {
+      "val_acc": 0.8187,
+      "test_acc": 0.8247
+    },
+    "0.1": {
+      "val_acc": 0.819,
+      "test_acc": 0.8242
+    },
+    "1": {
+      "val_acc": 0.8193,
+      "test_acc": 0.8251
+    },
+    "10": {
+      "val_acc": 0.8193,
+      "test_acc": 0.8256
+    },
+    "100": {
+      "val_acc": 0.819,
+      "test_acc": 0.8256
+    }
+  },
+  "gcv_rho_choice": 0.01,
+  "best_rho_on_val": "1",
+  "incremental_max_abs_weight_diff": 0.0,
+  "unlearning_max_abs_weight_diff": 0.0
+}

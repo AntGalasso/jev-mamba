@@ -1,0 +1,198 @@
+\documentclass[11pt,a4paper]{article}
+
+\usepackage{fontspec}
+\setmainfont{Latin Modern Roman}
+\setsansfont{Latin Modern Sans}
+\setmonofont{Latin Modern Mono}
+\usepackage[italian,provide=*]{babel}
+\usepackage{microtype}
+\usepackage[margin=2.5cm]{geometry}
+\usepackage{amsmath,amssymb,bm}
+\usepackage{booktabs,tabularx,array}
+\usepackage{enumitem}
+\usepackage[dvipsnames]{xcolor}
+\usepackage{fancyhdr}
+\usepackage[colorlinks=true,linkcolor=NavyBlue,urlcolor=NavyBlue]{hyperref}
+
+\setlist{itemsep=2pt,topsep=4pt}
+\renewcommand{\arraystretch}{1.25}
+\newcolumntype{L}{>{\raggedright\arraybackslash}X}
+\setlength{\parindent}{0pt}
+\setlength{\parskip}{5pt}
+
+\pagestyle{fancy}
+\fancyhf{}
+\fancyhead[L]{\small Mamba-Jev -- Research Plan}
+\fancyfoot[C]{\small\thepage}
+\renewcommand{\headrulewidth}{0.3pt}
+
+\newcommand{\X}{\bm{X}}
+\newcommand{\W}{\bm{W}}
+\newcommand{\Y}{\bm{Y}}
+\newcommand{\tr}{\operatorname{tr}}
+
+\title{\textbf{Mamba-Jev: Research Plan}\\[4pt]
+\large Teste lineari in forma chiusa su backbone Mamba\\per decisioni strutturate in un singolo forward pass}
+\author{}
+\date{30 settembre 2026}
+
+\begin{document}
+\maketitle
+\thispagestyle{fancy}
+
+%--------------------------------------------------------------------
+\section{Obiettivo e ipotesi}
+
+Mamba-Jev codifica l'intero prompt con un backbone Mamba e produce, in un solo forward pass, un output strutturato composto da tre elementi: una scelta tra $C$ classi (\emph{choice}), un punteggio di confidenza in $[0,1]$ (\emph{score}) e un flag di rejection per richieste fuori dominio (\emph{noul}). L'elemento di innovazione è la sostituzione della discesa del gradiente sulle teste finali con una soluzione ai minimi quadrati in forma chiusa (\emph{Exact QP Solver}).
+
+\textbf{Ipotesi da verificare.}
+\begin{description}[leftmargin=1.6cm,labelwidth=1.2cm,font=\bfseries]
+  \item[H1] Teste in forma chiusa su feature congelate raggiungono una qualità entro una tolleranza $\delta$ (fissata \emph{prima} degli esperimenti) da un linear probe addestrato con SGD.
+  \item[H2] Il costo di fit delle teste si riduce sensibilmente: una passata sul dataset più una fattorizzazione $O(D^3)$ (entità da quantificare).
+  \item[H3] L'eventuale perdita di calibrazione rispetto a una loss probabilistica (CE/BCE) è recuperabile con una calibrazione post-hoc leggera.
+  \item[H4] A parità di taglia, l'inferenza single-pass ha latenza inferiore a un baseline autoregressivo che genera lo stesso output token per token.
+\end{description}
+
+%--------------------------------------------------------------------
+\section{Formulazione del solver}
+
+Sia $\X\in\mathbb{R}^{N\times D}$ la matrice delle feature (hidden state dell'ultimo token non-pad, dopo la norm finale) e $\Y_h$ il target della testa $h\in\{\text{choice},\text{score},\text{noul}\}$. Per ogni testa si risolve il problema ridge
+\begin{equation}
+  \W_h^\star=\arg\min_{\W}\;\|\X\W-\Y_h\|_F^2+\lambda\|\W\|_F^2
+  =(\X^\top\X+\lambda I)^{-1}\X^\top\Y_h,
+  \qquad \lambda=\rho\,\frac{\tr(\X^\top\X)}{D}.
+\end{equation}
+La matrice di Gram e il termine noto si accumulano in streaming sui batch, $A=\sum_b\X_b^\top\X_b$ e $B_h=\sum_b\X_b^\top\Y_{h,b}$, con memoria $O(D^2)$ indipendente da $N$. Il costo è $O(ND^2)$ per l'accumulo e $O(D^3+D^2C)$ per la risoluzione (Cholesky in fp64). In ambiente multi-GPU le statistiche sono additive: una \texttt{all\_reduce} restituisce la soluzione esatta sul dataset globale.
+
+Poiché le teste sono lineari e la sigmoide è applicata dopo, i target sono espressi nello spazio dei logit:
+
+\begin{center}
+\begin{tabularx}{\textwidth}{lL}
+\toprule
+\textbf{Testa} & \textbf{Target $\Y_h$} \\
+\midrule
+choice & $\mathrm{onehot}(y)$; righe con label non definita escluse dal Gram \\
+score  & $\mathrm{logit}\big(\mathrm{clip}(s,\varepsilon,1-\varepsilon)\big)$ \\
+noul   & $\pm m$ (margine fissato) \\
+\bottomrule
+\end{tabularx}
+\end{center}
+
+\textbf{Avvertenza.} Questa è una regressione ai minimi quadrati sui target, \emph{non} il minimizzatore di CE/BCE: è adatta ad argmax e ranking, meno alla calibrazione (vedi \S\ref{sec:gap}). Il caso non vincolato coincide con un QP senza vincoli, per cui esiste la soluzione chiusa; eventuali vincoli (per esempio output sul simplesso) richiederebbero un solver QP vero e proprio.
+
+%--------------------------------------------------------------------
+\section{Protocollo sperimentale}
+
+\textbf{Dati.} Split train/validation/test. Per la testa \emph{noul} il test include domini o classi \emph{mai visti} in training. Validation usata per selezionare $\rho$ e per la calibrazione. I dataset concreti sono ancora da definire. \textbf{Statistica:} almeno 3 seed, intervalli di confidenza bootstrap al 95\%, confronti appaiati.
+
+\textbf{Configurazioni a confronto.}
+\begin{center}
+\begin{tabularx}{\textwidth}{llllL}
+\toprule
+\textbf{Id} & \textbf{Backbone} & \textbf{Teste} & \textbf{Loss teste} & \textbf{Ruolo} \\
+\midrule
+B1 & SGD end-to-end & SGD & CE/BCE & riferimento superiore \\
+B2 & congelato & SGD (linear probe) & CE/BCE & isola l'effetto del solver \\
+B3 & congelato & forma chiusa & LS ridge & \textbf{metodo proposto} \\
+B4 & congelato & IRLS / L-BFGS & CE/BCE & ottimo per la loss corretta \\
+\bottomrule
+\end{tabularx}
+\end{center}
+
+\textbf{Metriche.}
+\begin{center}
+\begin{tabularx}{\textwidth}{lL}
+\toprule
+\textbf{Testa / aspetto} & \textbf{Metriche} \\
+\midrule
+choice & accuracy, macro-F1 \\
+score  & Brier score, ECE \\
+noul   & AUROC, FPR@95\%TPR \\
+costo  & tempo di fit (wall-clock), memoria di picco \\
+\bottomrule
+\end{tabularx}
+\end{center}
+
+%--------------------------------------------------------------------
+\section{Ablazioni sul solver}
+
+\begin{center}
+\begin{tabularx}{\textwidth}{lL}
+\toprule
+\textbf{Fattore} & \textbf{Valori / domanda} \\
+\midrule
+Ridge $\rho$ & scansione logaritmica (es.\ da $10^{-6}$ a $10^{-1}$), scelta su validation \\
+Mappatura target & margine $m$ per noul, $\varepsilon$ per score, scala one-hot per choice \\
+Bias & colonna costante aggiunta a $\X$ contro assenza di bias; feature centrate \\
+Pooling & ultimo token non-pad contro media dei token \\
+Rapporto $N/D$ & quanti campioni servono prima che la ridge smetta di dominare \\
+Precisione & feature bf16 con accumulo fp32 contro accumulo fp64; TF32 on/off \\
+\bottomrule
+\end{tabularx}
+\end{center}
+
+%--------------------------------------------------------------------
+\section{Gap rispetto all'ottimo e calibrazione}\label{sec:gap}
+
+Per quantificare cosa si perde usando LS al posto della loss corretta, si confronta B3 con la regressione logistica ridge sulle stesse feature. Per le teste binarie si usa Newton/IRLS, minimizzando
+$\mathcal{L}(\bm w)=-\sum_i[y_i\log p_i+(1-y_i)\log(1-p_i)]+\tfrac{\lambda}{2}\|\bm w\|^2$ con
+\begin{equation}
+  \bm w^{(t+1)}=\bm w^{(t)}+\big(\X^\top S^{(t)}\X+\lambda I\big)^{-1}\big(\X^\top(\bm y-\bm p^{(t)})-\lambda\bm w^{(t)}\big),
+  \qquad S=\mathrm{diag}\big(p_i(1-p_i)\big),
+\end{equation}
+mentre per choice (multiclasse) si usa L-BFGS. Domanda centrale: la calibrazione post-hoc (\emph{temperature scaling} per choice e score, \emph{Platt scaling} per noul, un pugno di parametri sulla validation) chiude il gap di ECE e Brier rispetto a B4? Si riporta l'ECE prima e dopo la calibrazione.
+
+%--------------------------------------------------------------------
+\section{Varianti ibride}
+
+\begin{enumerate}[label=(\roman*)]
+  \item \textbf{Alternanza.} Il backbone viene aggiornato con SGD per $N$ step a teste fisse, poi le teste sono ricalcolate in forma chiusa. Le statistiche $A,B_h$ vanno ricalcolate dopo ogni aggiornamento del backbone, perché le feature cambiano; in alternativa si usa una versione approssimata con fattore di oblio $A\leftarrow\gamma A+\X_b^\top\X_b$.
+  \item \textbf{Ridge differenziabile.} La soluzione $\W(\X)$ è differenziabile (per esempio attraverso \texttt{cholesky\_solve}) e permette una loss end-to-end sul batch. Se la dimensione del batch $B<D$ conviene la forma duale $\W=\X^\top(\X\X^\top+\lambda I)^{-1}\Y$, che richiede un sistema $B\times B$ invece di $D\times D$.
+\end{enumerate}
+
+%--------------------------------------------------------------------
+\section{Benchmark di inferenza}
+
+Si confrontano Mamba-Jev (un forward, teste lineari con costo $O(D(C+2))$) e un baseline autoregressivo della stessa taglia che genera l'output strutturato token per token. Variabili: lunghezza del prompt $L$, batch size, lunghezza dell'output generato; hardware e dtype fissi. Metriche: latenza p50/p95 per richiesta, throughput, memoria, oltre alla qualità dell'output a parità di task.
+
+\textbf{Precisazione sul claim O(1).} Il costo è costante \emph{nel numero di token generati}; la codifica del prompt resta lineare in $L$ (scan del backbone SSM, non quadratica come l'attenzione). Il paper dovrebbe formulare il claim in questi termini.
+
+%--------------------------------------------------------------------
+\section{Rischi e mitigazioni}
+
+\begin{center}
+\begin{tabularx}{\textwidth}{>{\raggedright\arraybackslash}p{3.6cm}LL}
+\toprule
+\textbf{Rischio} & \textbf{Effetto} & \textbf{Mitigazione} \\
+\midrule
+Classi sbilanciate & LS sotto-pesa le classi rare & LS pesata per riga; ricalibrazione delle soglie \\
+Assenza di bias & offset dei target non rappresentabile & colonna costante in $\X$; feature centrate \\
+$N<D$ o collinearità & sistema mal condizionato & ridge, soluzione in fp64, monitoraggio di $\mathrm{cond}(A)$ \\
+Drift delle feature & pesi obsoleti dopo un update del backbone & re-solve dopo ogni aggiornamento \\
+Precisione bf16 & Gram rumorosa & accumulo fp32, TF32 disattivato \\
+Left-padding & lo stato ricorrente include i pad & right-padding, test di regressione \\
+Claim O(1) & ambiguità nel paper & formulazione rispetto ai token in output \\
+\bottomrule
+\end{tabularx}
+\end{center}
+
+%--------------------------------------------------------------------
+\section{Fasi e deliverable}
+
+\begin{center}
+\begin{tabularx}{\textwidth}{lLL}
+\toprule
+\textbf{Fase} & \textbf{Contenuto} & \textbf{Deliverable} \\
+\midrule
+F0 & Infrastruttura, pipeline dati, verifica del solver contro \texttt{lstsq} & repo funzionante, self-test verde \\
+F1 & Baseline B1--B3 & tabella comparativa con IC \\
+F2 & Ablazioni, B4, calibrazione & analisi del gap LS contro CE/BCE \\
+F3 & Varianti ibride (i)--(ii) & confronto con B3 \\
+F4 & Benchmark di inferenza e stesura & risultati di latenza, bozza del paper \\
+\bottomrule
+\end{tabularx}
+\end{center}
+
+\textbf{Criteri di successo (da fissare prima di F1).} (1) B3 entro $\delta$ da B2 su accuracy di choice e AUROC di noul; (2) ECE di B3 dopo calibrazione comparabile a B4; (3) speed-up di fit misurato e riportato con IC; (4) riduzione di latenza rispetto al baseline autoregressivo confermata su più valori di $L$.
+
+\end{document}

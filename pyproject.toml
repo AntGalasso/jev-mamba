@@ -1,0 +1,25 @@
+[build-system]
+requires = ["setuptools>=68"]
+build-backend = "setuptools.build_meta"
+
+[project]
+name = "mamba-jev"
+version = "0.2.0"
+description = "Mamba-Jev: backbone Mamba + teste lineari in forma chiusa, con calibrazione LOO e rejection dalle stesse statistiche"
+requires-python = ">=3.10"
+dependencies = ["torch>=2.1"]
+
+[project.optional-dependencies]
+mamba = ["mamba-ssm", "causal-conv1d"]
+dev = ["pytest>=7", "ruff", "mypy", "scikit-learn"]
+exp = ["numpy", "scipy", "scikit-learn", "spacy"]  # experiments/ (spacy opzionale: --encoder spacy)
+
+[tool.setuptools.packages.find]
+where = ["src"]
+
+[tool.pytest.ini_options]
+testpaths = ["tests"]
+pythonpath = ["src"]
+
+[tool.ruff]
+line-length = 120
